@@ -1,288 +1,140 @@
+
 import streamlit as st
 import PyPDF2
-import re
 import pandas as pd
 
-# ---------------- PAGE CONFIG ----------------
-st.set_page_config(
-    page_title="AI ATS Resume Analyzer",
-    page_icon="🚀",
-    layout="wide"
-)
+st.set_page_config(page_title="AI ATS Resume Analyzer Pro", page_icon="🚀", layout="wide")
 
-# ---------------- CUSTOM CSS ----------------
 st.markdown("""
 <style>
-
-.main {
-    background-color: #0f172a;
-}
-
-.stApp {
-    background: linear-gradient(to right, #0f172a, #1e293b);
-    color: white;
-}
-
-h1, h2, h3, h4 {
-    color: white;
-}
-
-.big-title {
-    font-size: 55px;
-    font-weight: bold;
-    text-align: center;
-    color: #38bdf8;
-}
-
-.sub-title {
-    text-align: center;
-    font-size: 20px;
-    color: #cbd5e1;
-    margin-bottom: 30px;
-}
-
-.card {
-    background-color: #1e293b;
-    padding: 25px;
-    border-radius: 15px;
-    box-shadow: 0px 0px 15px rgba(0,0,0,0.3);
-    margin-bottom: 20px;
-}
-
-.skill-box {
-    background-color: #0ea5e9;
-    padding: 8px 15px;
-    border-radius: 10px;
-    display: inline-block;
-    margin: 5px;
-    color: white;
-    font-weight: bold;
-}
-
-.missing-skill {
-    background-color: #ef4444;
-    padding: 8px 15px;
-    border-radius: 10px;
-    display: inline-block;
-    margin: 5px;
-    color: white;
-    font-weight: bold;
-}
-
-.footer {
-    text-align: center;
-    margin-top: 50px;
-    color: gray;
-}
-
+.stApp {background: linear-gradient(to right,#0f172a,#1e293b); color:white;}
+.big-title{font-size:50px;font-weight:bold;text-align:center;color:#38bdf8;}
+.sub-title{text-align:center;color:#cbd5e1;}
+.card{background:#1e293b;padding:20px;border-radius:12px;margin:10px 0;}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- HEADER ----------------
-st.markdown(
-    '<p class="big-title">🚀 AI ATS Resume Analyzer</p>',
-    unsafe_allow_html=True
-)
+st.markdown('<p class="big-title">🚀 AI ATS Resume Analyzer Pro</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">ATS Score + Career Prediction + Skill Gap Analysis</p>', unsafe_allow_html=True)
 
-st.markdown(
-    '<p class="sub-title">Smart Resume Screening System using Artificial Intelligence</p>',
-    unsafe_allow_html=True
-)
+career_roles = {
+    "Web Developer":["html","css","javascript","react","node","express","sql","git"],
+    "Python Developer":["python","django","flask","api","sql","git"],
+    "Data Analyst":["python","sql","excel","power bi","tableau","statistics","data analysis"],
+    "Data Scientist":["python","machine learning","deep learning","pandas","numpy","tensorflow","sql"],
+    "UI/UX Designer":["figma","adobe xd","wireframe","prototype","ui design"]
+}
 
-# ---------------- SIDEBAR ----------------
-st.sidebar.title("📌 About Project")
+all_skills = sorted(set(skill for v in career_roles.values() for skill in v))
 
-st.sidebar.info("""
-This project analyzes resumes and checks ATS compatibility.
+salary_ranges = {
+    "Web Developer":"₹3–10 LPA",
+    "Python Developer":"₹4–12 LPA",
+    "Data Analyst":"₹4–11 LPA",
+    "Data Scientist":"₹6–20 LPA",
+    "UI/UX Designer":"₹3–12 LPA"
+}
 
-### Features:
-✅ Resume Upload  
-✅ ATS Score Checker  
-✅ Skill Matching  
-✅ Missing Skills Detection  
-✅ Resume Suggestions  
-✅ Professional Dashboard  
-""")
-
-# ---------------- REQUIRED SKILLS ----------------
-required_skills = [
-    "python",
-    "html",
-    "css",
-    "javascript",
-    "sql",
-    "machine learning",
-    "data analysis",
-    "communication",
-    "leadership",
-    "streamlit",
-    "react",
-    "django"
-]
-
-# ---------------- FILE UPLOAD ----------------
-uploaded_file = st.file_uploader(
-    "📄 Upload Your Resume",
-    type=["pdf"]
-)
-
-# ---------------- PDF TEXT EXTRACTION ----------------
 def extract_text(pdf_file):
-
     text = ""
-
-    pdf_reader = PyPDF2.PdfReader(pdf_file)
-
-    for page in pdf_reader.pages:
+    reader = PyPDF2.PdfReader(pdf_file)
+    for page in reader.pages:
         content = page.extract_text()
-
         if content:
-            text += content
+            text += content.lower()
+    return text
 
-    return text.lower()
+def ats_score(text):
+    matched = [s for s in all_skills if s in text]
+    score = int((len(matched)/len(all_skills))*100)
+    return score, matched
 
-# ---------------- ATS SCORE ----------------
-def calculate_score(resume_text):
+def predict_career(text):
+    best_role = ""
+    best_score = 0
+    matched_best = []
+    missing_best = []
 
-    matched_skills = []
+    for role, skills in career_roles.items():
+        matched = [s for s in skills if s in text]
+        score = int((len(matched)/len(skills))*100)
 
-    for skill in required_skills:
+        if score > best_score:
+            best_score = score
+            best_role = role
+            matched_best = matched
+            missing_best = [s for s in skills if s not in matched]
 
-        if skill.lower() in resume_text:
-            matched_skills.append(skill)
+    return best_role, best_score, matched_best, missing_best
 
-    score = int((len(matched_skills) / len(required_skills)) * 100)
+uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
 
-    return score, matched_skills
+if uploaded_file:
+    text = extract_text(uploaded_file)
 
-# ---------------- MAIN ----------------
-if uploaded_file is not None:
+    score, matched = ats_score(text)
+    role, role_score, role_matched, role_missing = predict_career(text)
 
-    resume_text = extract_text(uploaded_file)
+    st.subheader("🎯 ATS Score")
+    st.progress(score/100)
+    st.metric("ATS Score", f"{score}%")
 
-    score, matched_skills = calculate_score(resume_text)
+    c1, c2 = st.columns(2)
 
-    missing_skills = [
-        skill for skill in required_skills
-        if skill not in matched_skills
-    ]
+    with c1:
+        st.success(f"Recommended Profession: {role}")
+        st.info(f"Profession Match Score: {role_score}%")
+        st.write("Expected Salary:", salary_ranges.get(role, "N/A"))
 
-    # ---------- SCORE SECTION ----------
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    with c2:
+        st.write("### Skills Found")
+        for s in role_matched:
+            st.write("✅", s)
 
-    st.subheader("🎯 ATS Resume Score")
-
-    st.progress(score / 100)
-
-    st.markdown(
-        f"<h1 style='text-align:center; color:#38bdf8;'>{score}%</h1>",
-        unsafe_allow_html=True
-    )
-
-    if score >= 80:
-        st.success("Excellent Resume 🚀")
-    elif score >= 60:
-        st.warning("Good Resume 👍")
+    st.write("### Missing Skills For Selected Career")
+    if role_missing:
+        for s in role_missing:
+            st.write("❌", s)
     else:
-        st.error("Resume Needs Improvement ❌")
+        st.success("All required skills found for this profession!")
 
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # ---------- SKILLS SECTION ----------
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-
-        st.subheader("✅ Matched Skills")
-
-        for skill in matched_skills:
-            st.markdown(
-                f'<span class="skill-box">{skill}</span>',
-                unsafe_allow_html=True
-            )
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col2:
-
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-
-        st.subheader("❌ Missing Skills")
-
-        for skill in missing_skills:
-            st.markdown(
-                f'<span class="missing-skill">{skill}</span>',
-                unsafe_allow_html=True
-            )
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # ---------- RESUME TEXT ----------
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-
-    st.subheader("📃 Extracted Resume Text")
-
-    st.text_area(
-        "Resume Content",
-        resume_text,
-        height=300
-    )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # ---------- SUGGESTIONS ----------
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-
-    st.subheader("💡 Resume Improvement Suggestions")
+    st.write("### Career Roadmap")
+    for i, skill in enumerate(role_missing, start=1):
+        st.write(f"{i}. Learn {skill}")
 
     suggestions = []
+    if "github" not in text:
+        suggestions.append("Add GitHub profile")
+    if "linkedin" not in text:
+        suggestions.append("Add LinkedIn profile")
+    if "project" not in text:
+        suggestions.append("Add projects section")
+    if "internship" not in text:
+        suggestions.append("Add internship experience")
 
-    if "projects" not in resume_text:
-        suggestions.append("Add Projects Section")
-
-    if "internship" not in resume_text:
-        suggestions.append("Add Internship Experience")
-
-    if "github" not in resume_text:
-        suggestions.append("Add GitHub Profile")
-
-    if "linkedin" not in resume_text:
-        suggestions.append("Add LinkedIn Profile")
-
-    if len(missing_skills) > 0:
-        suggestions.append("Add More Technical Skills")
-
-    if len(suggestions) > 0:
-
-        for item in suggestions:
-            st.write("✔", item)
-
+    st.write("### Resume Suggestions")
+    if suggestions:
+        for s in suggestions:
+            st.write("✔", s)
     else:
-        st.success("Your resume looks strong!")
+        st.success("Resume looks strong!")
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    chart_df = pd.DataFrame({
+        "Category":["Matched Skills","Missing Skills"],
+        "Count":[len(role_matched), len(role_missing)]
+    })
+    st.bar_chart(chart_df.set_index("Category"))
 
-    # ---------- CHART ----------
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    with st.expander("Extracted Resume Text"):
+        st.text_area("", text, height=300)
 
-    st.subheader("📊 Resume Analysis")
-
-    data = {
-        "Category": ["Matched Skills", "Missing Skills"],
-        "Count": [len(matched_skills), len(missing_skills)]
-    }
-
-    df = pd.DataFrame(data)
-
-    st.bar_chart(df.set_index("Category"))
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ---------------- FOOTER ----------------
-st.markdown("""
-<div class="footer">
-Developed with ❤️ using Python & Streamlit
-</div>
-""", unsafe_allow_html=True)
+st.sidebar.title("About")
+st.sidebar.info(
+    "Offline ATS Resume Analyzer\n\n"
+    "✔ ATS Score\n"
+    "✔ Career Prediction\n"
+    "✔ Missing Skills\n"
+    "✔ Resume Suggestions\n"
+    "✔ Salary Estimate\n"
+    "✔ Learning Roadmap"
+)
