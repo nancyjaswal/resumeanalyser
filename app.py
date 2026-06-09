@@ -13,7 +13,8 @@ import time
 # ---------------- PAGE CONFIG ----------------
 
 st.set_page_config(
-    page_title="AI ATS Resume Analyzer Pro",
+  page_title="AI ATS Resume Analyzer Pro" \
+    "Created By Sahil Jaswal",
     page_icon="🚀",
     layout="wide"
 )
